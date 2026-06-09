@@ -4,7 +4,7 @@
 
 ---
 
-## 当前状态：Phase 1 ✅ 已完成 + 前端 ✅ 已完成
+## 当前状态：Phase 1 ✅ 已完成 + 前端 ✅ 已完成 + Codespaces 部署 ✅ 已完成
 
 **39/39 测试全部通过**（auth×6, applications×5, test_cases×3, test_tasks×3, state_machine×16, defects×6）
 
@@ -265,13 +265,89 @@ cd frontend && npm run dev
 
 ---
 
+## GitHub Codespaces 部署（2026-06-09）✅
+
+### 部署目标
+在 GitHub Codespaces 云端环境中运行完整项目（前端 + 后端 + PostgreSQL），无需本地安装任何依赖。
+
+### 仓库地址
+`https://github.com/suiyuebuzai/test-center`
+
+### 关键配置文件
+
+#### `.devcontainer/devcontainer.json`
+```json
+{
+  "name": "Test Center Dev",
+  "image": "mcr.microsoft.com/devcontainers/python:3.11",
+  "features": {
+    "ghcr.io/devcontainers/features/node:1": { "version": "20" }
+  },
+  "forwardPorts": [8000, 5173],
+  "portsAttributes": {
+    "5173": { "label": "Frontend", "onAutoForward": "openBrowser" }
+  },
+  "postCreateCommand": "bash .devcontainer/setup.sh",
+  "remoteUser": "root"
+}
+```
+
+#### `.devcontainer/setup.sh`
+容器创建时自动执行，完成 PostgreSQL 安装、数据库初始化、依赖安装：
+```bash
+apt-get install -y postgresql postgresql-contrib
+service postgresql start
+runuser -u postgres -- psql -c "ALTER USER postgres WITH PASSWORD 'postgres';"
+runuser -u postgres -- createdb test_center
+pip install -r requirements.txt
+alembic upgrade head
+cd frontend && npm install
+```
+
+### 启动方式
+Codespace 初始化完成后，开两个终端：
+```bash
+# 终端 1 — 后端
+uvicorn app.main:app --reload --port 8000
+
+# 终端 2 — 前端
+cd frontend && npm run dev -- --host
+```
+
+访问前端：Codespaces 自动弹出 5173 端口的公网链接（格式如 `https://<name>-5173.app.github.dev`）
+
+### 踩坑记录
+
+| 坑 | 原因 | 解决方案 |
+|----|------|---------|
+| `postgres:1` feature 报错 | Codespaces 无法从 `ghcr.io` 拉取 feature | 改为 `apt-get install postgresql` |
+| `sudo` 要求输入密码 | recovery 容器无 NOPASSWD 配置 | `remoteUser` 改为 `root` |
+| 注册接口 500 错误 | `roles` 表为空，migration 不 seed 数据 | 新增 `a1b2c3d4e5f6_seed_roles.py` 迁移 |
+| 前端 Codespaces 访问不到 | Vite 默认只监听 localhost | `vite.config.ts` 加 `host: true`，启动时加 `-- --host` |
+
+### Docker 单容器方案（前后端合一）
+
+采用多阶段构建，一个镜像包含前端和后端：
+- Stage 1：Node 构建前端 → `dist/`
+- Stage 2：Python 镜像复制 `dist/`，FastAPI 用 `StaticFiles` 托管静态文件
+
+```bash
+docker compose up --build  # 访问 http://localhost:8000
+```
+
+---
+
 ## Phase 2 待做内容
 
 - [ ] 自动化脚本模块（automation_scripts, automation_runs, automation_run_details）
 - [ ] 性能测试模块（perf_scripts, perf_runs）
 - [ ] 增强 RBAC（应用级角色、用户角色管理接口）
 - [ ] 报告 API（测试通过率、缺陷趋势统计）
-- [ ] Docker 化部署 + CI/CD（Phase 2 核心）
+- [x] Docker 单容器方案（多阶段构建，前后端合一）✅ 2026-06-09
+- [x] GitHub Codespaces 部署 ✅ 2026-06-09
+- [ ] Docker Compose 多容器（Nginx + 独立前端容器）
+- [ ] GitHub Actions CI/CD 流水线
+- [ ] 云服务器部署（阿里云/AWS + Nginx + HTTPS）
 
 ---
 
