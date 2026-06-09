@@ -2,19 +2,19 @@
 set -e
 
 echo "=== 安装 PostgreSQL ==="
-sudo apt-get update -qq
-sudo apt-get install -y postgresql postgresql-contrib
+apt-get update -qq
+apt-get install -y postgresql postgresql-contrib
 
 echo "=== 启动 PostgreSQL ==="
-sudo service postgresql start
+service postgresql start
 
 echo "=== 等待 PostgreSQL 启动 ==="
 until pg_isready -U postgres; do sleep 1; done
 
 echo "=== 初始化数据库 ==="
-sudo -u postgres psql -c "ALTER USER postgres WITH PASSWORD 'postgres';"
-sudo -u postgres createdb test_center 2>/dev/null || echo "test_center 已存在"
-sudo -u postgres createdb test_center_test 2>/dev/null || echo "test_center_test 已存在"
+runuser -u postgres -- psql -c "ALTER USER postgres WITH PASSWORD 'postgres';"
+runuser -u postgres -- createdb test_center 2>/dev/null || echo "test_center 已存在"
+runuser -u postgres -- createdb test_center_test 2>/dev/null || echo "test_center_test 已存在"
 
 echo "=== 创建 .env ==="
 cat > .env << 'EOF'
@@ -35,6 +35,6 @@ echo "=== 安装前端依赖 ==="
 cd frontend && npm install
 
 echo ""
-echo "=== 环境就绪！启动命令 ==="
+echo "=== 环境就绪！==="
 echo "后端: uvicorn app.main:app --reload --port 8000"
 echo "前端: cd frontend && npm run dev -- --host"
