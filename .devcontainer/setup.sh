@@ -1,6 +1,13 @@
 #!/bin/bash
 set -e
 
+echo "=== 安装 PostgreSQL ==="
+sudo apt-get update -qq
+sudo apt-get install -y postgresql postgresql-contrib
+
+echo "=== 启动 PostgreSQL ==="
+sudo service postgresql start
+
 echo "=== 等待 PostgreSQL 启动 ==="
 until pg_isready -U postgres; do sleep 1; done
 
